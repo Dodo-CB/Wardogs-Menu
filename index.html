@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WARDOGS AUTOKLICKER</title>
+<style>
+  :root {
+    --bg: #080808;
+    --glass: #141414;
+    --line: #333;
+    --text: #f5f5f5;
+    --muted: #a0a0a0;
+    --accent: #fff;
+    --accent2: #aaa;
+    --ok: #fff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI Variable", "Segoe UI", Inter, system-ui, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  /* ---------- Ladescreen ---------- */
+  #loader {
+    position: fixed; inset: 0; z-index: 50;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+    transition: opacity 0.8s ease, transform 0.8s ease, visibility 0.8s;
+  }
+  #loader.hide { opacity: 0; transform: scale(1.06); visibility: hidden; }
+  .logo {
+    width: 84px; height: 84px; border-radius: 26px; display: grid; place-items: center;
+    background: #fff;
+    box-shadow: 0 0 32px rgba(255,255,255,0.12), inset 0 0 0 1px rgba(255,255,255,0.25);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  .logo svg { width: 42px; height: 42px; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+  .loader-title { font-size: 22px; font-weight: 600; letter-spacing: 0.04em; }
+  .loader-sub { color: var(--muted); font-size: 12px; margin-top: -16px; letter-spacing: 0.16em; text-transform: uppercase; }
+  .spinner {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.12);
+    border-top-color: var(--accent); border-right-color: #777;
+    animation: spin 0.9s cubic-bezier(.5,.15,.5,.85) infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- Hauptfenster ---------- */
+  #app {
+    position: relative; z-index: 10; height: 100%;
+    display: grid; place-items: center; padding: 28px;
+    opacity: 0; transform: translateY(14px) scale(0.985);
+    transition: opacity 0.8s ease 0.2s, transform 0.8s ease 0.2s;
+  }
+  #app.show { opacity: 1; transform: none; }
+  .workspace {
+    width: 100%; max-width: 980px; height: 100%;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .nav {
+    min-height: 58px; display: flex; align-items: center; justify-content: space-between;
+    gap: 18px; padding: 8px 14px; background: var(--glass); border: 1px solid var(--line);
+    border-radius: 18px;
+  }
+  .nav-brand { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; white-space: nowrap; }
+  .nav-items { display: flex; gap: 6px; }
+  .nav button {
+    padding: 10px 14px; border: 0; border-radius: 12px; cursor: pointer;
+    color: var(--muted); background: transparent; font-size: 13px; font-weight: 600;
+  }
+  .nav button:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+  .nav button.on { color: #080808; background: #fff; }
+  .shell {
+    width: 100%; max-width: 900px; flex: 1; min-height: 0; align-self: center; max-height: 600px;
+    display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px;
+  }
+  @media (max-width: 800px) {
+    #app { padding: 14px; }
+    .workspace { min-height: 100%; }
+    .nav { flex-direction: column; align-items: flex-start; }
+    .nav-items { width: 100%; }
+    .nav button { flex: 1; padding-inline: 8px; }
+    .shell { grid-template-columns: 1fr; max-height: none; overflow-y: auto; }
+  }
+  .card {
+    background: var(--glass); border: 1px solid var(--line); border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+    padding: 26px; display: flex; flex-direction: column; gap: 22px;
+    overflow-y: auto; scrollbar-width: none;
+  }
+  .card::-webkit-scrollbar { display: none; }
+  .hint { font-size: 12px; line-height: 1.5; color: var(--muted); padding: 12px 14px; border-radius: 14px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--line); }
+  [hidden] { display: none !important; }
+  .head { display: flex; align-items: center; gap: 14px; }
+  .head .logo { width: 44px; height: 44px; border-radius: 14px; animation: none;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25); }
+  .head .logo svg { width: 22px; height: 22px; }
+  .head h1 { font-size: 18px; font-weight: 600; }
+  .head p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .team-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .team-option {
+    min-width: 0; padding: 10px; border-radius: 16px; border: 1px solid var(--line);
+    background: #101010; color: var(--text); cursor: pointer; text-align: center;
+  }
+  .team-option:hover { border-color: #888; }
+  .team-option.selected { border-color: #fff; box-shadow: inset 0 0 0 1px #fff; }
+  .team-option img { display: block; width: 100%; height: 112px; object-fit: contain; margin-bottom: 8px; }
+  .team-image-placeholder {
+    height: 112px; display: grid; place-items: center; margin-bottom: 8px;
+    color: #777; font-size: 11px; border: 1px dashed #444; border-radius: 10px;
+  }
+  .team-option span { font-size: 12px; font-weight: 600; }
+  .team-status { font-size: 13px; color: var(--muted); }
+
+  .label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+    margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .label b { color: var(--text); font-weight: 600; letter-spacing: 0; text-transform: none; font-size: 13px; }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent) var(--p, 20%), #383838 var(--p, 20%));
+    outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
+    background: #111; border: 4px solid var(--accent); box-shadow: 0 0 10px rgba(255,255,255,0.2);
+  }
+  .num {
+    width: 100%; margin-top: 12px; padding: 11px 14px; background: rgba(255,255,255,0.05);
+    border: 1px solid var(--line); border-radius: 14px; color: var(--text); font-size: 14px;
+    outline: none; transition: border 0.2s; user-select: text;
+  }
+  .num:focus { border-color: var(--accent); }
+
+  .seg { display: flex; padding: 4px; gap: 4px; background: rgba(255,255,255,0.05);
+    border: 1px solid var(--line); border-radius: 16px; }
+  .seg button {
+    flex: 1; padding: 10px 8px; border: 0; border-radius: 12px; cursor: pointer;
+    background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; transition: all 0.25s ease;
+  }
+  .seg button:hover { color: var(--text); }
+  .seg button.on { background: #fff; color: #080808; }
+
+  .right { justify-content: space-between; }
+  .status {
+    display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted);
+    padding: 10px 14px; border-radius: 99px; background: rgba(255,255,255,0.05);
+    border: 1px solid var(--line); align-self: flex-start; transition: color 0.3s;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #666; transition: all 0.3s; }
+  .status.active { color: var(--ok); }
+  .status.active .dot { background: var(--ok); }
+  @keyframes blink { 50% { opacity: 0.45; } }
+
+  .count { text-align: center; }
+  .count .big { font-size: 54px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+    color: #fff; }
+  .count .small { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  .link { background: none; border: 0; color: var(--muted); font-size: 12px; cursor: pointer; margin-top: 8px; text-decoration: underline; text-underline-offset: 3px; }
+  .link:hover { color: var(--text); }
+
+  .hotkey {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid var(--line);
+  }
+  .kbd {
+    padding: 6px 14px; border-radius: 10px; font-weight: 600; font-size: 14px; letter-spacing: 0.04em;
+    background: rgba(255,255,255,0.1); border: 1px solid var(--line); border-bottom-width: 3px;
+  }
+  .ghost {
+    padding: 8px 14px; border-radius: 12px; cursor: pointer; font-size: 12px; color: var(--text);
+    background: rgba(255,255,255,0.06); border: 1px solid var(--line); transition: all 0.2s;
+  }
+  .ghost:hover { background: rgba(255,255,255,0.12); }
+  .ghost.wait { border-color: var(--accent2); color: var(--text); }
+
+  .go {
+    width: 100%; padding: 16px; border: 0; border-radius: 18px; cursor: pointer;
+    font-size: 15px; font-weight: 600; letter-spacing: 0.03em;
+    color: #080808;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(255,255,255,0.12); transition: transform 0.15s, box-shadow 0.25s, opacity 0.25s;
+  }
+  .go:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(255,255,255,0.2); }
+  .go:active { transform: translateY(0) scale(0.99); }
+  .go.stop { color: #fff; background: #333; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  .go:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+</style>
+</head>
+<body>
+
+<!-- Ladescreen -->
+<div id="loader">
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#080808" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 3l14 8-6 2-2 6z"/>
+    </svg>
+  </div>
+  <div class="loader-title">WARDOGS AUTOKLICKER</div>
+  <div class="loader-sub">Wird geladen</div>
+  <div class="spinner"></div>
+</div>
+
+<!-- Hauptfenster -->
+<div id="app">
+  <div class="workspace">
+    <nav class="nav" aria-label="Hauptnavigation">
+      <div class="nav-brand">WARDOGS AUTOKLICKER</div>
+      <div class="nav-items" id="mainNav">
+        <button data-page="wardogs" class="on">Wardogs</button>
+        <button data-page="clicker">Autoklicker</button>
+        <button data-page="minecraft">Minecraft</button>
+      </div>
+    </nav>
+
+    <div class="shell">
+      <div class="card">
+        <section class="view" id="pageWardogs">
+          <div class="head">
+            <div>
+              <h1>Wardogs Team</h1>
+              <p>Wähle das Team, das angeklickt werden soll.</p>
+            </div>
+          </div>
+          <div class="team-grid" id="teamGrid">
+            <button class="team-option selected" data-team="manticore">
+              <img src="assets/teams/Manticore.png" alt="Manticore">
+              <span>Manticore</span>
+            </button>
+            <button class="team-option" data-team="valkyr">
+              <img src="assets/teams/Valkyra.png" alt="Valkyra">
+              <span>Valkyra</span>
+            </button>
+            <button class="team-option" data-team="lonesta">
+              <img src="assets/teams/Lonestar.png" alt="Lonestar">
+              <span>Lonestar</span>
+            </button>
+          </div>
+          <div class="team-status" id="teamStatus">Ausgewählt: Manticore</div>
+          <div class="hint">
+            Die Team-Logos liegen in <b>assets\teams\</b> (Manticore.png, Valkyra.png, Lonestar.png).
+            Starte am besten mit <b>F8</b>, während Wardogs im Vordergrund ist. Nach dem Countdown
+            wird die Maus mittig auf das gefundene Team bewegt und einmal geklickt. Abbrechen: F8.
+          </div>
+        </section>
+
+        <section class="view" id="pageClicker" hidden style="display:flex;flex-direction:column;gap:22px;">
+          <div class="head">
+            <div>
+              <h1>Autoklicker</h1>
+              <p>Normaler Mausklick-Autoklicker</p>
+            </div>
+          </div>
+          <div>
+            <div class="label"><span>Klick-Intervall</span><b id="ivLabel">100 ms</b></div>
+            <input type="range" id="ivRange" min="10" max="2000" step="10" value="100" />
+            <input type="number" id="ivNum" class="num" min="10" max="60000" value="100" />
+          </div>
+          <div>
+            <div class="label"><span>Maustaste</span></div>
+            <div class="seg" id="segButton">
+              <button data-v="left" class="on">Links</button>
+              <button data-v="middle">Mitte</button>
+              <button data-v="right">Rechts</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="pageMinecraft" hidden style="display:flex;flex-direction:column;gap:22px;">
+          <div class="head">
+            <div>
+              <h1>Minecraft</h1>
+              <p>Fast Bridge Einstellungen</p>
+            </div>
+          </div>
+          <div>
+            <div class="label"><span>Lauf-Zeit (ohne Sneak)</span><b id="walkLabel">150 ms</b></div>
+            <input type="range" id="walkRange" min="20" max="300" step="5" value="150" />
+          </div>
+          <div>
+            <div class="label"><span>Sneak-Zeit (nach Platzieren)</span><b id="sneakLabel">150 ms</b></div>
+            <input type="range" id="sneakRange" min="20" max="300" step="5" value="150" />
+          </div>
+          <div>
+            <div class="label"><span>Sneak-Taste in Minecraft</span></div>
+            <div class="seg" id="segSneakKey">
+              <button data-v="ctrl" class="on">Strg</button>
+              <button data-v="shift">Shift</button>
+            </div>
+          </div>
+          <div>
+            <div class="label"><span>Seitentaste (Diagonal)</span></div>
+            <div class="seg" id="segSide">
+              <button data-v="none" class="on">Aus</button>
+              <button data-v="a">S + A</button>
+              <button data-v="d">S + D</button>
+            </div>
+          </div>
+          <div class="hint">
+            Stell dich an die Kante, schau schräg nach unten auf die Blockkante und starte per Hotkey.
+            Das Tool hält <b>S</b> (optional + <b>A</b>/<b>D</b>) selbst gedrückt: Sneaken &rarr; Block setzen &rarr; Entsneaken. Lass dabei alle Tasten los.
+          </div>
+        </section>
+
+        <div class="mode-setting" id="modeSetting">
+          <div class="label"><span>Modus</span></div>
+          <div class="seg" id="segMode">
+            <button data-v="toggle" class="on">Umschalten</button>
+            <button data-v="hold">Gedrückt halten</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card right">
+        <div class="status" id="status"><span class="dot"></span><span id="statusText">Bereit</span></div>
+        <div class="count">
+          <div class="big" id="clicks">0</div>
+          <div class="small" id="countLabel">Team-Klicks</div>
+          <button class="link" id="resetBtn">Zähler zurücksetzen</button>
+        </div>
+        <div>
+          <div class="label"><span>Hotkey</span></div>
+          <div class="hotkey">
+            <span class="kbd" id="hotkey">F8</span>
+            <button class="ghost" id="hkBtn">Ändern</button>
+          </div>
+        </div>
+        <button class="go" id="goBtn">Team suchen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let cfg = { interval: 100, button: 'left', mode: 'toggle', sneak: 150, walk: 150, side: 'none', sneak_key: 'ctrl', team: 'manticore' };
+  let page = 'wardogs';
+  let last = null;
+  const teamNames = { manticore: 'Manticore', valkyr: 'Valkyra', lonesta: 'Lonestar' };
+  const featureForPage = { wardogs: 'wardogs', clicker: 'clicker', minecraft: 'bridge' };
+
+  function showApp() {
+    $('loader').classList.add('hide');
+    $('app').classList.add('show');
+  }
+  const loaderTimer = setTimeout(showApp, 700);
+
+  function api() { return window.pywebview && window.pywebview.api; }
+  function pushConfig() { if (api()) api().set_config(cfg); }
+
+  function fillRange(r) {
+    const p = Math.min(100, ((r.value - r.min) / (r.max - r.min)) * 100);
+    r.style.setProperty('--p', p + '%');
+  }
+
+  function setInterval_(v) {
+    v = Math.max(10, Math.min(60000, parseInt(v) || 100));
+    cfg.interval = v;
+    $('ivLabel').textContent = v + ' ms';
+    $('ivRange').value = Math.min(v, 2000);
+    $('ivNum').value = v;
+    fillRange($('ivRange'));
+    pushConfig();
+  }
+  $('ivRange').addEventListener('input', (e) => setInterval_(e.target.value));
+  $('ivNum').addEventListener('change', (e) => setInterval_(e.target.value));
+
+  function bindRange(id, key, labelId) {
+    const r = $(id);
+    const upd = (push) => {
+      cfg[key] = parseInt(r.value);
+      $(labelId).textContent = r.value + ' ms';
+      fillRange(r);
+      if (push) pushConfig();
+    };
+    r.addEventListener('input', () => upd(true));
+    upd(false);
+  }
+  bindRange('walkRange', 'walk', 'walkLabel');
+  bindRange('sneakRange', 'sneak', 'sneakLabel');
+
+  function segment(id, key) {
+    $(id).querySelectorAll('button').forEach((b) => {
+      b.addEventListener('click', () => {
+        $(id).querySelectorAll('button').forEach((x) => x.classList.remove('on'));
+        b.classList.add('on');
+        cfg[key] = b.dataset.v;
+        pushConfig();
+      });
+    });
+  }
+  segment('segButton', 'button');
+  segment('segMode', 'mode');
+  segment('segSide', 'side');
+  segment('segSneakKey', 'sneak_key');
+
+  function showPage(nextPage) {
+    page = nextPage;
+    document.querySelectorAll('.view').forEach((view) => {
+      view.hidden = view.id !== 'page' + nextPage[0].toUpperCase() + nextPage.slice(1);
+    });
+    document.querySelectorAll('#mainNav button').forEach((button) => {
+      button.classList.toggle('on', button.dataset.page === page);
+    });
+    $('modeSetting').hidden = page === 'wardogs';
+    $('countLabel').textContent =
+      page === 'wardogs' ? 'Team-Klicks' :
+      page === 'minecraft' ? 'Blöcke' : 'Klicks';
+    $('goBtn').textContent =
+      page === 'wardogs' ? 'Team suchen' :
+      page === 'minecraft' ? 'Fast Bridge starten' : 'Starten';
+    fillRange($('walkRange'));
+    fillRange($('sneakRange'));
+    fillRange($('ivRange'));
+    if (last) render(last);
+  }
+  $('mainNav').querySelectorAll('button').forEach((b) => {
+    b.addEventListener('click', () => {
+      showPage(b.dataset.page);
+    });
+  });
+
+  $('teamGrid').querySelectorAll('button').forEach((button) => {
+    button.addEventListener('click', () => {
+      cfg.team = button.dataset.team;
+      $('teamGrid').querySelectorAll('button').forEach((item) => {
+        item.classList.toggle('selected', item === button);
+      });
+      $('teamStatus').textContent = 'Ausgewählt: ' + teamNames[cfg.team];
+      pushConfig();
+    });
+  });
+  $('teamGrid').querySelectorAll('img').forEach((image) => {
+    image.addEventListener('error', () => {
+      image.hidden = true;
+      const placeholder = document.createElement('div');
+      placeholder.className = 'team-image-placeholder';
+      placeholder.textContent = 'PNG fehlt';
+      image.before(placeholder);
+    }, { once: true });
+  });
+
+  $('goBtn').addEventListener('click', () => api() && api().toggle(featureForPage[page]));
+  $('resetBtn').addEventListener('click', () => api() && api().reset_clicks(featureForPage[page]));
+
+  $('hkBtn').addEventListener('click', async () => {
+    if (!api()) return;
+    const b = $('hkBtn');
+    b.classList.add('wait');
+    b.textContent = 'Taste drücken …';
+    $('hotkey').textContent = '…';
+    await api().capture_hotkey(featureForPage[page]);
+    b.classList.remove('wait');
+    b.textContent = 'Ändern';
+  });
+
+  function render(s) {
+    last = s;
+    const feat = featureForPage[page];
+    $('hotkey').textContent = s.capturing ? '…' : s.hotkeys[feat];
+    const n = page === 'wardogs' ? s.wardogs_clicks :
+      page === 'clicker' ? s.clicks : s.blocks;
+    $('clicks').textContent = n.toLocaleString('de-DE');
+
+    const st = $('status');
+    st.classList.toggle('active', s.active === feat);
+    $('statusText').textContent =
+      page === 'wardogs' && s.active === 'wardogs' ? s.wardogs_status :
+      page === 'wardogs' && s.wardogs_status !== 'Bereit' ? s.wardogs_status :
+      s.active === 'clicker' ? 'Klickt gerade' :
+      s.active === 'bridge' ? 'Bridget gerade' :
+      (s.capturing ? 'Warte auf Taste' : 'Bereit');
+
+    const go = $('goBtn');
+    const mine = s.active === feat;
+    if (page !== 'wardogs' && s.mode === 'hold') {
+      go.disabled = true;
+      go.classList.remove('stop');
+      go.textContent = 'Hotkey gedrückt halten';
+    } else {
+      go.disabled = false;
+      go.classList.toggle('stop', mine);
+      go.textContent = mine ? 'Stoppen' :
+        page === 'wardogs' ? 'Team suchen' :
+        page === 'minecraft' ? 'Fast Bridge starten' : 'Starten';
+    }
+  }
+
+  async function poll() {
+    if (api()) {
+      try {
+        render(await api().get_state());
+      } catch (e) {
+        console.error('Status konnte nicht geladen werden:', e);
+        $('statusText').textContent = 'Verbindung unterbrochen';
+      }
+    }
+    setTimeout(poll, 250);
+  }
+
+  window.addEventListener('pywebviewready', () => {
+    clearTimeout(loaderTimer);
+    showApp();
+    pushConfig();
+  });
+  showPage(page);
+  fillRange($('ivRange'));
+  poll();
+</script>
+</body>
+</html>

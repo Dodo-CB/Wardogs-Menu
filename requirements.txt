@@ -1,0 +1,5 @@
+pywebview
+keyboard
+pyinstaller
+mss
+opencv-python-headless
