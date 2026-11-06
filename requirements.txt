@@ -1,5 +1,5 @@
 pywebview
-keyboard
+pynput
 pyinstaller
 mss
 opencv-python-headless
